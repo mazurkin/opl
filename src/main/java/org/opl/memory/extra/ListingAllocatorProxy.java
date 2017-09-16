@@ -20,8 +20,7 @@ public class ListingAllocatorProxy implements Allocator {
      * @param delegate Main allocator instance
      */
     public ListingAllocatorProxy(Allocator delegate) {
-        this.delegate = delegate;
-        this.allocatedBlockRegistry = new ConcurrentHashMap<>();
+        this(delegate, new ConcurrentHashMap<>());
     }
 
     /**
