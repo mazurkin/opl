@@ -32,7 +32,7 @@ public class ListingAllocatorProxyTest {
 
         Assert.assertEquals(Arrays.stream(SIZES).sum(), allocator.getAllocatedBytes());
         Assert.assertEquals(SIZES.length, allocator.getAllocatedBlocks());
-        Assert.assertEquals(SIZES.length, allocator.getAllocatedBlockList().size());
+        Assert.assertEquals(SIZES.length, allocator.getAllocatedBlockRegistry().size());
 
         for (long address : addresses) {
             allocator.free(address);
@@ -40,7 +40,7 @@ public class ListingAllocatorProxyTest {
 
         Assert.assertEquals(0, allocator.getAllocatedBytes());
         Assert.assertEquals(0, allocator.getAllocatedBlocks());
-        Assert.assertEquals(0, allocator.getAllocatedBlockList().size());
+        Assert.assertEquals(0, allocator.getAllocatedBlockRegistry().size());
     }
 
     @Test
@@ -48,18 +48,30 @@ public class ListingAllocatorProxyTest {
         long a1 = allocator.allocate(1024);
         Assert.assertEquals(1, allocator.getAllocatedBlocks());
         Assert.assertEquals(1024, allocator.getAllocatedBytes());
-        Assert.assertEquals(1, allocator.getAllocatedBlockList().size());
+        Assert.assertEquals(1, allocator.getAllocatedBlockRegistry().size());
 
         long a2 = allocator.reallocate(a1, 2048);
         Assert.assertEquals(1, allocator.getAllocatedBlocks());
         Assert.assertEquals(2048, allocator.getAllocatedBytes());
-        Assert.assertEquals(1, allocator.getAllocatedBlockList().size());
+        Assert.assertEquals(1, allocator.getAllocatedBlockRegistry().size());
 
         allocator.free(a2);
         Assert.assertEquals(0, allocator.getAllocatedBlocks());
         Assert.assertEquals(0, allocator.getAllocatedBytes());
-        Assert.assertEquals(0, allocator.getAllocatedBlockList().size());
+        Assert.assertEquals(0, allocator.getAllocatedBlockRegistry().size());
     }
 
+    @Test
+    public void freeUnknownAddress() throws Exception {
+        long a1 = allocator.allocate(1024);
 
+        allocator.free(a1);
+
+        try {
+            allocator.free(a1);
+            Assert.fail();
+        } catch (IllegalStateException e) {
+            // expected
+        }
+    }
 }

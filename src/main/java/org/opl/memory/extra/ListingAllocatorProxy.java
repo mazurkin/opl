@@ -13,54 +13,73 @@ public class ListingAllocatorProxy implements Allocator {
 
     private final Allocator delegate;
 
-    private final Map<Long, Long> allocatedBlockList;
+    private final Map<Long, Long> allocatedBlockRegistry;
 
     /**
-     * Construct a listing proxy around delegate allocator
+     * Constructs a listing proxy around delegate allocator
      * @param delegate Main allocator instance
      */
     public ListingAllocatorProxy(Allocator delegate) {
         this.delegate = delegate;
-        this.allocatedBlockList = new ConcurrentHashMap<>();
+        this.allocatedBlockRegistry = new ConcurrentHashMap<>();
+    }
+
+    /**
+     * Constructs a listing proxy around delegate allocator
+     * @param delegate Main allocator instance
+     * @param registryMap Some thread-safe map instance that should be used as a registry
+     */
+    public ListingAllocatorProxy(Allocator delegate, Map<Long, Long> registryMap) {
+        this.delegate = delegate;
+        this.allocatedBlockRegistry = registryMap;
     }
 
     @Override
     public long allocate(long size) throws OutOfMemoryError {
         long address = delegate.allocate(size);
 
-        allocatedBlockList.put(address, size);
+        allocatedBlockRegistry.put(address, size);
 
         return address;
     }
 
     @Override
     public long reallocate(long address, long newSize) throws OutOfMemoryError {
-        long newAddress = delegate.reallocate(address, newSize);
+        Long v = allocatedBlockRegistry.remove(address);
+        if (v == null) {
+            throw new IllegalStateException(String.format("Block %s is not registered in the allocation registry",
+                Long.toHexString(address)));
+        }
 
-        allocatedBlockList.remove(address);
-        allocatedBlockList.put(newAddress, newSize);
+        long newAddress = delegate.reallocate(address, newSize);
+        allocatedBlockRegistry.put(newAddress, newSize);
 
         return newAddress;
     }
 
     @Override
     public void free(long address) {
+        Long v = allocatedBlockRegistry.remove(address);
+        if (v == null) {
+            throw new IllegalStateException(String.format("Block %s is not registered in the allocation registry",
+                Long.toHexString(address)));
+        }
+
         delegate.free(address);
-        allocatedBlockList.remove(address);
     }
 
-    public Map<Long, Long> getAllocatedBlockList() {
-        return new HashMap<>(allocatedBlockList);
+    public Map<Long, Long> getAllocatedBlockRegistry() {
+        return new HashMap<>(allocatedBlockRegistry);
     }
 
     public long getAllocatedBytes() {
-        return allocatedBlockList.values().stream()
+        return allocatedBlockRegistry.values().stream()
             .mapToLong(Long::longValue)
             .sum();
     }
 
     public long getAllocatedBlocks() {
-        return allocatedBlockList.size();
+        return allocatedBlockRegistry.size();
     }
 
 }
