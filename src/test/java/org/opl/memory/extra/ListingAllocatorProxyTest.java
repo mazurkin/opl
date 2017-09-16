@@ -9,7 +9,6 @@ import org.opl.platform.Mem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Map;
 
 public class ListingAllocatorProxyTest {
 
@@ -31,20 +30,36 @@ public class ListingAllocatorProxyTest {
             addresses.add(address);
         }
 
-        long allocated = allocator.getListing().entrySet().stream()
-                .mapToLong(Map.Entry::getValue)
-                .sum();
-
-        Assert.assertEquals(Arrays.stream(SIZES).sum(), allocated);
-        Assert.assertEquals(SIZES.length, allocator.getListing().size());
+        Assert.assertEquals(Arrays.stream(SIZES).sum(), allocator.getAllocatedBytes());
+        Assert.assertEquals(SIZES.length, allocator.getAllocatedBlocks());
+        Assert.assertEquals(SIZES.length, allocator.getAllocatedBlockList().size());
 
         for (long address : addresses) {
             allocator.free(address);
         }
 
-        Assert.assertEquals(0, allocator.getListing().size());
+        Assert.assertEquals(0, allocator.getAllocatedBytes());
+        Assert.assertEquals(0, allocator.getAllocatedBlocks());
+        Assert.assertEquals(0, allocator.getAllocatedBlockList().size());
     }
 
+    @Test
+    public void reallocate() throws Exception {
+        long a1 = allocator.allocate(1024);
+        Assert.assertEquals(1, allocator.getAllocatedBlocks());
+        Assert.assertEquals(1024, allocator.getAllocatedBytes());
+        Assert.assertEquals(1, allocator.getAllocatedBlockList().size());
+
+        long a2 = allocator.reallocate(a1, 2048);
+        Assert.assertEquals(1, allocator.getAllocatedBlocks());
+        Assert.assertEquals(2048, allocator.getAllocatedBytes());
+        Assert.assertEquals(1, allocator.getAllocatedBlockList().size());
+
+        allocator.free(a2);
+        Assert.assertEquals(0, allocator.getAllocatedBlocks());
+        Assert.assertEquals(0, allocator.getAllocatedBytes());
+        Assert.assertEquals(0, allocator.getAllocatedBlockList().size());
+    }
 
 
 }

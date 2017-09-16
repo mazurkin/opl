@@ -43,6 +43,21 @@ public class DefensiveAllocatorProxyTest {
     }
 
     @Test
+    public void reallocate() throws Exception {
+        long a1 = allocator.allocate(1024);
+        Assert.assertEquals(1, allocator.getAllocatedBlocks());
+        Assert.assertEquals(1024, allocator.getAllocatedBytes());
+
+        long a2 = allocator.reallocate(a1, 2048);
+        Assert.assertEquals(1, allocator.getAllocatedBlocks());
+        Assert.assertEquals(2048, allocator.getAllocatedBytes());
+
+        allocator.free(a2);
+        Assert.assertEquals(0, allocator.getAllocatedBlocks());
+        Assert.assertEquals(0, allocator.getAllocatedBytes());
+    }
+
+    @Test
     public void doubleFreeCall() throws Exception {
         long address = allocator.allocate(1024);
 

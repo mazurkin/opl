@@ -13,7 +13,7 @@ public class ListingAllocatorProxy implements Allocator {
 
     private final Allocator delegate;
 
-    private final Map<Long, Long> listing;
+    private final Map<Long, Long> allocatedBlockList;
 
     /**
      * Construct a listing proxy around delegate allocator
@@ -21,14 +21,14 @@ public class ListingAllocatorProxy implements Allocator {
      */
     public ListingAllocatorProxy(Allocator delegate) {
         this.delegate = delegate;
-        this.listing = new ConcurrentHashMap<>();
+        this.allocatedBlockList = new ConcurrentHashMap<>();
     }
 
     @Override
     public long allocate(long size) throws OutOfMemoryError {
         long address = delegate.allocate(size);
 
-        listing.put(address, size);
+        allocatedBlockList.put(address, size);
 
         return address;
     }
@@ -37,8 +37,8 @@ public class ListingAllocatorProxy implements Allocator {
     public long reallocate(long address, long newSize) throws OutOfMemoryError {
         long newAddress = delegate.reallocate(address, newSize);
 
-        listing.remove(address);
-        listing.put(newAddress, newSize);
+        allocatedBlockList.remove(address);
+        allocatedBlockList.put(newAddress, newSize);
 
         return newAddress;
     }
@@ -46,10 +46,21 @@ public class ListingAllocatorProxy implements Allocator {
     @Override
     public void free(long address) {
         delegate.free(address);
-        listing.remove(address);
+        allocatedBlockList.remove(address);
     }
 
-    public Map<Long, Long> getListing() {
-        return new HashMap<>(listing);
+    public Map<Long, Long> getAllocatedBlockList() {
+        return new HashMap<>(allocatedBlockList);
     }
+
+    public long getAllocatedBytes() {
+        return allocatedBlockList.values().stream()
+            .mapToLong(Long::longValue)
+            .sum();
+    }
+
+    public long getAllocatedBlocks() {
+        return allocatedBlockList.size();
+    }
+
 }
