@@ -9,7 +9,7 @@ import java.util.Collection;
 
 public class SystemAllocatorTest {
 
-    private static final long[] SIZES = { 256, 512, 16 * Mem.KB, Mem.GB };
+    private static final long[] SIZES = { 256, 512, 16 * Mem.KB, Mem.MB };
 
     private SystemAllocator allocator;
 
@@ -20,7 +20,7 @@ public class SystemAllocatorTest {
 
     @Test
     public void simple() throws Exception {
-        Collection<Long> addresses = new ArrayList<Long>(64);
+        Collection<Long> addresses = new ArrayList<>(64);
 
         for (long size : SIZES) {
             long address = allocator.allocate(size);

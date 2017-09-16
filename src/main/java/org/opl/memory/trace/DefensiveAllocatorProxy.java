@@ -1,6 +1,7 @@
-package org.opl.memory.extra;
+package org.opl.memory.trace;
 
 import org.opl.memory.Allocator;
+import org.opl.memory.AllocatorException;
 import org.opl.platform.Jvm;
 import org.opl.platform.Mem;
 import org.slf4j.Logger;
@@ -52,6 +53,10 @@ public class DefensiveAllocatorProxy implements Allocator {
 
     @Override
     public long allocate(long externalSize) {
+        if (externalSize <= 0) {
+            throw new IllegalArgumentException("Size must be greater than 0");
+        }
+
         final long delegateSize = externalSize + HEADER_SIZE + FOOTER_SIZE;
         final long delegateAddress = delegate.allocate(delegateSize);
         final long externalAddress = delegateAddress + HEADER_SIZE;
@@ -70,6 +75,10 @@ public class DefensiveAllocatorProxy implements Allocator {
 
     @Override
     public long reallocate(long externalAddress, long newExternalSize) {
+        if (newExternalSize <= 0) {
+            throw new IllegalArgumentException("Size must be greater than 0");
+        }
+
         final long delegateAddress = externalAddress - HEADER_SIZE;
         final long externalSize = fetchStamp(delegateAddress);
 
@@ -131,15 +140,15 @@ public class DefensiveAllocatorProxy implements Allocator {
 
     private static long fetchStamp(long delegateAddress) {
         final long externalSize = Jvm.getLong(delegateAddress);
-        if (externalSize == 0 || externalSize == CLEANUP_VALUE) {
-            throw new IllegalStateException(
+        if (externalSize <= 0) {
+            throw new AllocatorException(
                     String.format("Block %s size is not set. Block has been freed or corrupted",
                         Long.toHexString(delegateAddress)));
         }
 
         final long actualHeaderStamp = Jvm.getLong(delegateAddress + Mem.LONG_SIZE);
         if (actualHeaderStamp != HEADER_PROTECTOR_STAMP) {
-            throw new IllegalStateException(String.format("Header protection error: %s (must be %s) for addr %s",
+            throw new AllocatorException(String.format("Header protection error: %s (must be %s) for addr %s",
                     Long.toHexString(actualHeaderStamp),
                     Long.toHexString(HEADER_PROTECTOR_STAMP),
                     Long.toHexString(delegateAddress)));
@@ -147,7 +156,7 @@ public class DefensiveAllocatorProxy implements Allocator {
 
         final long actualFooterStamp = Jvm.getLong(delegateAddress + HEADER_SIZE + externalSize);
         if (actualFooterStamp != FOOTER_PROTECTOR_STAMP) {
-            throw new IllegalStateException(String.format("Footer protection error: %s (must be %s) for addr %s",
+            throw new AllocatorException(String.format("Footer protection error: %s (must be %s) for addr %s",
                     Long.toHexString(actualFooterStamp),
                     Long.toHexString(FOOTER_PROTECTOR_STAMP),
                     Long.toHexString(delegateAddress)));

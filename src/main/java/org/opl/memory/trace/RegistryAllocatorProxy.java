@@ -1,6 +1,7 @@
-package org.opl.memory.extra;
+package org.opl.memory.trace;
 
 import org.opl.memory.Allocator;
+import org.opl.memory.AllocatorException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Tracks all allocated blocks as a map [address of block -> size of block}</p>
  * <p>Checks that all operations are performed with a valid address that exists in the registry.</p>
  */
-public class ListingAllocatorProxy implements Allocator {
+public class RegistryAllocatorProxy implements Allocator {
 
     private final Allocator delegate;
 
@@ -20,7 +21,7 @@ public class ListingAllocatorProxy implements Allocator {
      * Constructs a listing proxy around delegate allocator
      * @param delegate Main allocator instance
      */
-    public ListingAllocatorProxy(Allocator delegate) {
+    public RegistryAllocatorProxy(Allocator delegate) {
         this(delegate, new ConcurrentHashMap<>());
     }
 
@@ -29,13 +30,17 @@ public class ListingAllocatorProxy implements Allocator {
      * @param delegate Main allocator instance
      * @param registryMap Some thread-safe map instance that should be used as a registry
      */
-    public ListingAllocatorProxy(Allocator delegate, Map<Long, Long> registryMap) {
+    public RegistryAllocatorProxy(Allocator delegate, Map<Long, Long> registryMap) {
         this.delegate = delegate;
         this.allocatedBlockRegistry = registryMap;
     }
 
     @Override
     public long allocate(long size) throws OutOfMemoryError {
+        if (size <= 0) {
+            throw new IllegalArgumentException("Size must be greater than 0");
+        }
+
         long address = delegate.allocate(size);
 
         allocatedBlockRegistry.put(address, size);
@@ -44,10 +49,14 @@ public class ListingAllocatorProxy implements Allocator {
     }
 
     @Override
-    public long reallocate(long address, long newSize) throws OutOfMemoryError {
+    public long reallocate(long address, long newSize) {
+        if (newSize <= 0) {
+            throw new IllegalArgumentException("Size must be greater than 0");
+        }
+
         Long v = allocatedBlockRegistry.remove(address);
         if (v == null) {
-            throw new IllegalStateException(String.format("Block %s is not registered in the allocation registry",
+            throw new AllocatorException(String.format("Block %s is not registered in the allocation registry",
                 Long.toHexString(address)));
         }
 
@@ -61,7 +70,7 @@ public class ListingAllocatorProxy implements Allocator {
     public void free(long address) {
         Long v = allocatedBlockRegistry.remove(address);
         if (v == null) {
-            throw new IllegalStateException(String.format("Block %s is not registered in the allocation registry",
+            throw new AllocatorException(String.format("Block %s is not registered in the allocation registry",
                 Long.toHexString(address)));
         }
 
@@ -89,7 +98,7 @@ public class ListingAllocatorProxy implements Allocator {
     public long getBlockSize(long address) {
         Long v = allocatedBlockRegistry.get(address);
         if (v == null) {
-            throw new IllegalStateException(String.format("Block %s is not registered in the allocation registry",
+            throw new AllocatorException(String.format("Block %s is not registered in the allocation registry",
                 Long.toHexString(address)));
         }
 
