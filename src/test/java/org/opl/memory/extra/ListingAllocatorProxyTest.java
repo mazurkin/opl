@@ -2,7 +2,9 @@ package org.opl.memory.extra;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.opl.memory.SystemAllocator;
 import org.opl.platform.Mem;
 
@@ -16,6 +18,9 @@ public class ListingAllocatorProxyTest {
 
     private ListingAllocatorProxy allocator;
 
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
+
     @Before
     public void setUp() throws Exception {
         allocator = new ListingAllocatorProxy(new SystemAllocator());
@@ -23,7 +28,7 @@ public class ListingAllocatorProxyTest {
 
     @Test
     public void simple() throws Exception {
-        Collection<Long> addresses = new ArrayList<Long>(64);
+        Collection<Long> addresses = new ArrayList<>(64);
 
         for (long size : SIZES) {
             long address = allocator.allocate(size);
@@ -62,16 +67,24 @@ public class ListingAllocatorProxyTest {
     }
 
     @Test
+    public void exists() throws Exception {
+        long a = allocator.allocate(1024);
+
+        Assert.assertTrue(allocator.hasBlock(a));
+        Assert.assertEquals(1024, allocator.getBlockSize(a));
+
+        allocator.free(a);
+
+        Assert.assertFalse(allocator.hasBlock(a));
+    }
+
+    @Test
     public void freeUnknownAddress() throws Exception {
         long a1 = allocator.allocate(1024);
 
         allocator.free(a1);
 
-        try {
-            allocator.free(a1);
-            Assert.fail();
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        expectedException.expect(IllegalStateException.class);
+        allocator.free(a1);
     }
 }

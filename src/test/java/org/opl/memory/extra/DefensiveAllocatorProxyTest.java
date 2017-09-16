@@ -2,7 +2,9 @@ package org.opl.memory.extra;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.opl.memory.SystemAllocator;
 import org.opl.platform.Jvm;
 import org.opl.platform.Mem;
@@ -16,6 +18,9 @@ public class DefensiveAllocatorProxyTest {
     private static final long[] SIZES = { 256, 512, 16 * Mem.KB, Mem.GB };
 
     private DefensiveAllocatorProxy allocator;
+
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
 
     @Before
     public void setUp() throws Exception {
@@ -63,12 +68,8 @@ public class DefensiveAllocatorProxyTest {
 
         allocator.free(address);
 
-        try {
-            allocator.free(address);
-            Assert.fail();
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        expectedException.expect(IllegalStateException.class);
+        allocator.free(address);
     }
 
     @Test
@@ -78,12 +79,8 @@ public class DefensiveAllocatorProxyTest {
         Jvm.putByte(address - 2, (byte) 0xFF);
         Jvm.putByte(address - 1, (byte) 0xFE);
 
-        try {
-            allocator.free(address);
-            Assert.fail();
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        expectedException.expect(IllegalStateException.class);
+        allocator.free(address);
     }
 
     @Test
@@ -93,11 +90,7 @@ public class DefensiveAllocatorProxyTest {
         Jvm.putByte(address + 1024, (byte) 0xFF);
         Jvm.putByte(address + 1025, (byte) 0xFE);
 
-        try {
-            allocator.free(address);
-            Assert.fail();
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        expectedException.expect(IllegalStateException.class);
+        allocator.free(address);
     }
 }

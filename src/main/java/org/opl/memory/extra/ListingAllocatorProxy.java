@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Tracks all allocated blocks as a map [address of block -> size of block}
+ * <p>Tracks all allocated blocks as a map [address of block -> size of block}</p>
+ * <p>Checks that all operations are performed with a valid address that exists in the registry.</p>
  */
 public class ListingAllocatorProxy implements Allocator {
 
@@ -79,6 +80,20 @@ public class ListingAllocatorProxy implements Allocator {
 
     public long getAllocatedBlocks() {
         return allocatedBlockRegistry.size();
+    }
+
+    public boolean hasBlock(long address) {
+        return allocatedBlockRegistry.containsKey(address);
+    }
+
+    public long getBlockSize(long address) {
+        Long v = allocatedBlockRegistry.get(address);
+        if (v == null) {
+            throw new IllegalStateException(String.format("Block %s is not registered in the allocation registry",
+                Long.toHexString(address)));
+        }
+
+        return v;
     }
 
 }
