@@ -2,6 +2,15 @@ package org.opl.platform;
 
 import java.lang.reflect.Field;
 
+/**
+ * <p>A wrapper around sun.misc.Unsafe that makes imports legal and safe.</p>
+ * @see <a href="http://mishadoff.com/blog/java-magic-part-4-sun-dot-misc-dot-unsafe">
+ *     Java Magic. Part 4: sun.misc.Unsafe</a>
+ * @see <a href="http://www.docjar.com/docs/api/sun/misc/Unsafe.html">
+ *     java.misc.Unsafe (javadoc)</a>
+ * @see <a href="https://dzone.com/articles/understanding-sunmiscunsafe">
+ *     Understanding sun.misc.Unsafe</a>
+ */
 @SuppressWarnings({"PMD.ShortClassName"})
 public final class Jvm {
 
@@ -26,6 +35,10 @@ public final class Jvm {
         }
     }
 
+    public static Object allocateInstance(Class<?> clazz) throws InstantiationException {
+        return UNSAFE.allocateInstance(clazz);
+    }
+
     public static long allocateMemory(long size) {
         return UNSAFE.allocateMemory(size);
     }
@@ -38,6 +51,10 @@ public final class Jvm {
         UNSAFE.freeMemory(address);
     }
 
+    public static void setMemory(long address, long bytes, byte value) {
+        UNSAFE.setMemory(address, bytes, value);
+    }
+
     public static void putLong(long address, long value) {
         UNSAFE.putLong(address, value);
     }
@@ -46,4 +63,59 @@ public final class Jvm {
         return UNSAFE.getLong(address);
     }
 
+    public static void putInt(long address, int value) {
+        UNSAFE.putInt(address, value);
+    }
+
+    public static int getInt(long address) {
+        return UNSAFE.getInt(address);
+    }
+
+    public static void putShort(long address, short value) {
+        UNSAFE.putShort(address, value);
+    }
+
+    public static short getShort(long address) {
+        return UNSAFE.getShort(address);
+    }
+
+    public static void putChar(long address, char value) {
+        UNSAFE.putChar(address, value);
+    }
+
+    public static char getChar(long address) {
+        return UNSAFE.getChar(address);
+    }
+
+    public static void putByte(long address, byte value) {
+        UNSAFE.putByte(address, value);
+    }
+
+    public static byte getByte(long address) {
+        return UNSAFE.getByte(address);
+    }
+
+    public static void putDouble(long address, double value) {
+        UNSAFE.putDouble(address, value);
+    }
+
+    public static double getDouble(long address) {
+        return UNSAFE.getDouble(address);
+    }
+
+    public static void putFloat(long address, float value) {
+        UNSAFE.putFloat(address, value);
+    }
+
+    public static float getFloat(long address) {
+        return UNSAFE.getFloat(address);
+    }
+
+    public static void putAddress(long address, long value) {
+        UNSAFE.putAddress(address, value);
+    }
+
+    public static long getAddress(long address) {
+        return UNSAFE.getAddress(address);
+    }
 }

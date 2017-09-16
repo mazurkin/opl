@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *     than 0 then it means you have a memory leak.</li>
  *     <li>Allocates additional header and footer area around real memory block. It allows to detect
  *     out-of-range writes.</li>
+ *     <li>Detects repeatable free calls on the same address</li>
  * </ul>
  */
 public class DefensiveAllocatorProxy implements Allocator {
@@ -27,13 +28,17 @@ public class DefensiveAllocatorProxy implements Allocator {
 
     private static final long FOOTER_SIZE = Mem.LONG_SIZE;
 
-    private static final long HEADER_PROTECTOR_STAMP = 0xEF0123456789ABCDL;
+    private static final long HEADER_PROTECTOR_STAMP = 0xEF01_2345_6789_ABCDL;
 
-    private static final long FOOTER_PROTECTOR_STAMP = 0xEDCBA9876543210FL;
+    private static final long FOOTER_PROTECTOR_STAMP = 0xEDCB_A987_6543_210FL;
+
+    private static final long CLEANUP_VALUE = 0xFFFF_FFFF_FFFF_FFFFL;
 
     private final Allocator delegate;
 
-    private final AtomicLong balance;
+    private final AtomicLong allocatedBytes;
+
+    private final AtomicLong allocatedBlocks;
 
     /**
      * Construct a defensive proxy around delegate allocator
@@ -41,94 +46,113 @@ public class DefensiveAllocatorProxy implements Allocator {
      */
     public DefensiveAllocatorProxy(Allocator delegate) {
         this.delegate = delegate;
-        this.balance = new AtomicLong(0);
+        this.allocatedBytes = new AtomicLong(0);
+        this.allocatedBlocks = new AtomicLong(0);
     }
 
     @Override
-    public long allocate(long size) {
-        final long delegateSize = size + HEADER_SIZE + FOOTER_SIZE;
+    public long allocate(long externalSize) {
+        final long delegateSize = externalSize + HEADER_SIZE + FOOTER_SIZE;
         final long delegateAddress = delegate.allocate(delegateSize);
         final long externalAddress = delegateAddress + HEADER_SIZE;
 
-        balance.addAndGet(size);
+        allocatedBytes.addAndGet(externalSize);
+        allocatedBlocks.incrementAndGet();
 
-        storeSize(delegateAddress, size);
+        storeStamp(delegateAddress, externalSize);
 
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("{} bytes are allocated at {}", size, Long.toHexString(externalAddress));
+            LOGGER.trace("{} bytes are allocated at {}", externalSize, Long.toHexString(externalAddress));
         }
 
         return externalAddress;
     }
 
     @Override
-    public long reallocate(long address, long newSize) {
-        final long delegateAddress = address - HEADER_SIZE;
-        final long curSize = fetchSize(delegateAddress);
+    public long reallocate(long externalAddress, long newExternalSize) {
+        final long delegateAddress = externalAddress - HEADER_SIZE;
+        final long externalSize = fetchStamp(delegateAddress);
 
-        final long newDelegateSize = newSize + HEADER_SIZE + FOOTER_SIZE;
+        clearStamp(delegateAddress, externalSize);
+
+        final long newDelegateSize = newExternalSize + HEADER_SIZE + FOOTER_SIZE;
         final long newDelegateAddress = delegate.reallocate(delegateAddress, newDelegateSize);
         final long newExternalAddress = newDelegateAddress + HEADER_SIZE;
 
-        balance.addAndGet(newSize - curSize);
+        allocatedBytes.addAndGet(newExternalSize - externalSize);
 
-        storeSize(newDelegateAddress, newSize);
+        storeStamp(newDelegateAddress, newExternalSize);
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("{} bytes at {} are reallocated to {} bytes at {}",
-                    curSize, Long.toHexString(address),
-                    newSize, Long.toHexString(newExternalAddress));
+                    externalSize, Long.toHexString(externalAddress),
+                    newExternalSize, Long.toHexString(newExternalAddress));
         }
 
         return newExternalAddress;
     }
 
     @Override
-    public void free(long address) {
-        final long delegateAddress = address - HEADER_SIZE;
-        final long size = fetchSize(delegateAddress);
+    public void free(long externalAddress) {
+        final long delegateAddress = externalAddress - HEADER_SIZE;
+        final long externalSize = fetchStamp(delegateAddress);
+
+        clearStamp(delegateAddress, externalSize);
 
         delegate.free(delegateAddress);
 
-        balance.addAndGet(-size);
+        allocatedBytes.addAndGet(-externalSize);
+        allocatedBlocks.decrementAndGet();
 
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("{} bytes at {} are freed", size, Long.toHexString(address));
+            LOGGER.trace("{} bytes at {} are freed", externalSize, Long.toHexString(externalAddress));
         }
     }
 
-    public long getBalance() {
-        return balance.get();
+    public long getAllocatedBytes() {
+        return allocatedBytes.get();
     }
 
-    private static void storeSize(long delegateAddress, long size) {
-        Jvm.putLong(delegateAddress, size);
+    public long getAllocatedBlocks() {
+        return allocatedBlocks.get();
+    }
+
+    private static void storeStamp(long delegateAddress, long externalSize) {
+        Jvm.putLong(delegateAddress, externalSize);
         Jvm.putLong(delegateAddress + Mem.LONG_SIZE, HEADER_PROTECTOR_STAMP);
-        Jvm.putLong(delegateAddress + HEADER_SIZE + size, FOOTER_PROTECTOR_STAMP);
+        Jvm.putLong(delegateAddress + HEADER_SIZE + externalSize, FOOTER_PROTECTOR_STAMP);
     }
 
-    private static long fetchSize(long delegateAddress) {
-        final long size = Jvm.getLong(delegateAddress);
+    private static void clearStamp(long delegateAddress, long externalSize) {
+        Jvm.putLong(delegateAddress, CLEANUP_VALUE);
+        Jvm.putLong(delegateAddress + Mem.LONG_SIZE, CLEANUP_VALUE);
+        Jvm.putLong(delegateAddress + HEADER_SIZE + externalSize, CLEANUP_VALUE);
+    }
+
+    private static long fetchStamp(long delegateAddress) {
+        final long externalSize = Jvm.getLong(delegateAddress);
+        if (externalSize == 0 || externalSize == CLEANUP_VALUE) {
+            throw new IllegalStateException(
+                    String.format("Block %s size is not set. Block has been freed or corrupted",
+                        Long.toHexString(delegateAddress)));
+        }
 
         final long actualHeaderStamp = Jvm.getLong(delegateAddress + Mem.LONG_SIZE);
         if (actualHeaderStamp != HEADER_PROTECTOR_STAMP) {
             throw new IllegalStateException(String.format("Header protection error: %s (must be %s) for addr %s",
                     Long.toHexString(actualHeaderStamp),
                     Long.toHexString(HEADER_PROTECTOR_STAMP),
-                    Long.toHexString(delegateAddress)
-            ));
+                    Long.toHexString(delegateAddress)));
         }
 
-        final long actualFooterStamp = Jvm.getLong(delegateAddress + HEADER_SIZE + size);
+        final long actualFooterStamp = Jvm.getLong(delegateAddress + HEADER_SIZE + externalSize);
         if (actualFooterStamp != FOOTER_PROTECTOR_STAMP) {
             throw new IllegalStateException(String.format("Footer protection error: %s (must be %s) for addr %s",
                     Long.toHexString(actualFooterStamp),
                     Long.toHexString(FOOTER_PROTECTOR_STAMP),
-                    Long.toHexString(delegateAddress)
-            ));
+                    Long.toHexString(delegateAddress)));
         }
 
-        return size;
+        return externalSize;
     }
-
 }
