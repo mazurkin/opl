@@ -69,23 +69,33 @@ public class RegistryAllocatorProxyTest {
 
     @Test
     public void exists() throws Exception {
-        long a = allocator.allocate(1024);
+        long address = allocator.allocate(1024);
 
-        Assert.assertTrue(allocator.hasBlock(a));
-        Assert.assertEquals(1024, allocator.getBlockSize(a));
+        Assert.assertTrue(allocator.hasBlock(address));
+        Assert.assertEquals(1024, allocator.getBlockSize(address));
 
-        allocator.free(a);
+        allocator.free(address);
 
-        Assert.assertFalse(allocator.hasBlock(a));
+        Assert.assertFalse(allocator.hasBlock(address));
+    }
+
+    @Test
+    public void freeSameAddress() throws Exception {
+        long address = allocator.allocate(1024);
+
+        allocator.free(address);
+
+        expectedException.expect(AllocatorException.class);
+        expectedException.expectMessage(Long.toHexString(address));
+        allocator.free(address);
     }
 
     @Test
     public void freeUnknownAddress() throws Exception {
-        long a1 = allocator.allocate(1024);
-
-        allocator.free(a1);
+        long address = 0x2837_2333;
 
         expectedException.expect(AllocatorException.class);
-        allocator.free(a1);
+        expectedException.expectMessage(Long.toHexString(address));
+        allocator.free(address);
     }
 }

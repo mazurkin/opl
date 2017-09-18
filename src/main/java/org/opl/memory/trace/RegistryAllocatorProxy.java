@@ -56,8 +56,8 @@ public class RegistryAllocatorProxy implements Allocator {
 
         Long v = allocatedBlockRegistry.remove(address);
         if (v == null) {
-            throw new AllocatorException(String.format("Block %s is not registered in the allocation registry",
-                Long.toHexString(address)));
+            throw new AllocatorException(
+                String.format("Block [0x%016x] is not registered in the allocation registry", address));
         }
 
         long newAddress = delegate.reallocate(address, newSize);
@@ -70,8 +70,8 @@ public class RegistryAllocatorProxy implements Allocator {
     public void free(long address) {
         Long v = allocatedBlockRegistry.remove(address);
         if (v == null) {
-            throw new AllocatorException(String.format("Block %s is not registered in the allocation registry",
-                Long.toHexString(address)));
+            throw new AllocatorException(
+                String.format("Block [0x%016x] is not registered in the allocation registry", address));
         }
 
         delegate.free(address);
@@ -98,8 +98,8 @@ public class RegistryAllocatorProxy implements Allocator {
     public long getBlockSize(long address) {
         Long v = allocatedBlockRegistry.get(address);
         if (v == null) {
-            throw new AllocatorException(String.format("Block %s is not registered in the allocation registry",
-                Long.toHexString(address)));
+            throw new AllocatorException(
+                String.format("Block [0x%016x] is not registered in the allocation registry", address));
         }
 
         return v;

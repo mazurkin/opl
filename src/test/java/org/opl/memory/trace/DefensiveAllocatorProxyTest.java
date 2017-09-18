@@ -70,6 +70,7 @@ public class DefensiveAllocatorProxyTest {
         allocator.free(address);
 
         expectedException.expect(AllocatorException.class);
+        expectedException.expectMessage(Long.toHexString(address));
         allocator.free(address);
     }
 
@@ -81,6 +82,7 @@ public class DefensiveAllocatorProxyTest {
         Jvm.putByte(address - 1, (byte) 0xFE);
 
         expectedException.expect(AllocatorException.class);
+        expectedException.expectMessage(Long.toHexString(address));
         allocator.free(address);
     }
 
@@ -92,6 +94,7 @@ public class DefensiveAllocatorProxyTest {
         Jvm.putByte(address + 1025, (byte) 0xFE);
 
         expectedException.expect(AllocatorException.class);
+        expectedException.expectMessage(Long.toHexString(address));
         allocator.free(address);
     }
 }

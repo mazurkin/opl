@@ -12,7 +12,7 @@ public interface Allocator {
      * @throws OutOfMemoryError Is thrown when allocator is our of memory
      * @throws AllocatorException Is thrown on violation of allocator's rule
      */
-    long allocate(long size) throws OutOfMemoryError;
+    long allocate(long size) throws AllocatorException, OutOfMemoryError;
 
     /**
      * Reallocates specified memory block with new size
@@ -22,13 +22,13 @@ public interface Allocator {
      * @throws OutOfMemoryError exception may be thrown when allocator is out of memory
      * @throws AllocatorException Is thrown on violation of allocator's rule
      */
-    long reallocate(long address, long newSize) throws OutOfMemoryError;
+    long reallocate(long address, long newSize) throws AllocatorException, OutOfMemoryError;
 
     /**
      * Releases memory block
      * @param address Address of memory block
      * @throws AllocatorException Is thrown on violation of allocator's rule
      */
-    void free(long address);
+    void free(long address) throws AllocatorException;
 
 }

@@ -67,7 +67,7 @@ public class DefensiveAllocatorProxy implements Allocator {
         storeStamp(delegateAddress, externalSize);
 
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("{} bytes are allocated at {}", externalSize, Long.toHexString(externalAddress));
+            LOGGER.trace(String.format("%d bytes are allocated at [0x%016x]", externalSize, externalAddress));
         }
 
         return externalAddress;
@@ -93,9 +93,8 @@ public class DefensiveAllocatorProxy implements Allocator {
         storeStamp(newDelegateAddress, newExternalSize);
 
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("{} bytes at {} are reallocated to {} bytes at {}",
-                    externalSize, Long.toHexString(externalAddress),
-                    newExternalSize, Long.toHexString(newExternalAddress));
+            LOGGER.trace(String.format("%d bytes at [0x%016x] are reallocated to %d bytes at [0x%016x]",
+                    externalSize, externalAddress, newExternalSize, newExternalAddress));
         }
 
         return newExternalAddress;
@@ -114,7 +113,7 @@ public class DefensiveAllocatorProxy implements Allocator {
         allocatedBlocks.decrementAndGet();
 
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("{} bytes at {} are freed", externalSize, Long.toHexString(externalAddress));
+            LOGGER.trace(String.format("%d bytes at [0x%016x] are freed", externalSize, externalAddress));
         }
     }
 
@@ -139,27 +138,27 @@ public class DefensiveAllocatorProxy implements Allocator {
     }
 
     private static long fetchStamp(long delegateAddress) {
+        final long externalAddress = delegateAddress + HEADER_SIZE;
+
         final long externalSize = Jvm.getLong(delegateAddress);
         if (externalSize <= 0) {
             throw new AllocatorException(
-                    String.format("Block %s size is not set. Block has been freed or corrupted",
-                        Long.toHexString(delegateAddress)));
+                String.format("Block size is invalid on [0x%016x]. Block has been freed or corrupted",
+                    externalAddress));
         }
 
         final long actualHeaderStamp = Jvm.getLong(delegateAddress + Mem.LONG_SIZE);
         if (actualHeaderStamp != HEADER_PROTECTOR_STAMP) {
-            throw new AllocatorException(String.format("Header protection error: %s (must be %s) for addr %s",
-                    Long.toHexString(actualHeaderStamp),
-                    Long.toHexString(HEADER_PROTECTOR_STAMP),
-                    Long.toHexString(delegateAddress)));
+            throw new AllocatorException(
+                String.format("Header protection error: 0x%016x (must be 0x%016x) for [0x%016x]",
+                    actualHeaderStamp, HEADER_PROTECTOR_STAMP, externalAddress));
         }
 
         final long actualFooterStamp = Jvm.getLong(delegateAddress + HEADER_SIZE + externalSize);
         if (actualFooterStamp != FOOTER_PROTECTOR_STAMP) {
-            throw new AllocatorException(String.format("Footer protection error: %s (must be %s) for addr %s",
-                    Long.toHexString(actualFooterStamp),
-                    Long.toHexString(FOOTER_PROTECTOR_STAMP),
-                    Long.toHexString(delegateAddress)));
+            throw new AllocatorException(
+                String.format("Footer protection error: 0x%016x (must be 0x%016x) for [0x%016x]",
+                    actualFooterStamp, FOOTER_PROTECTOR_STAMP, externalAddress));
         }
 
         return externalSize;
