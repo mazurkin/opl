@@ -43,9 +43,12 @@ Allocator allows to allocate, reallocate and free memory blocks.
         
     try {
         MemoryBlock block = factory.allocate(1024);
-        
-        Jvm.putLong(block.address(8), 0x1111_2222_3333_4444L);
-        long v = Jvm.getLong(block.adress(8));
+        try {        
+            Jvm.putLong(block.address(8), 0x1111_2222_3333_4444L);
+            long v = Jvm.getLong(block.adress(8));
+        } finally {
+            factory.free(block);
+        }
     } finally {
         factory.close();
     }    
@@ -55,7 +58,6 @@ Allocator allows to allocate, reallocate and free memory blocks.
 ## OplBitSet
 
 Off-heap bit set
-
         
     OplBitSet bitset = new OplBitSetImpl(memBlkFactory, 3 * Mem.GB);
     try {
