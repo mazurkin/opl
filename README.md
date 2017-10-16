@@ -45,7 +45,7 @@ Allocator allows to allocate, reallocate and free memory blocks.
         MemoryBlock block = factory.allocate(1024);
         
         Jvm.putLong(block.address(8), 0x1111_2222_3333_4444L);
-        long v = Jvm.getLong(block.adress(8);
+        long v = Jvm.getLong(block.adress(8));
     } finally {
         factory.close();
     }    
@@ -74,7 +74,7 @@ Off-heap [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter)
     try {
         filter.put(0x0123);
         Assert.assertTrue(filter.contains(0x0123)); // always true
-        Assert.assertFalse(filter.contains(0x0567)); // actually may fail because 
+        Assert.assertFalse(filter.contains(0x0567)); // actually may fail because the structure is probabilistic 
     } finally {
         filter.close(); // free memory
     }
@@ -86,7 +86,7 @@ of getting well-structured exception.
 
 So on development/test phase use safety options.
 
-## Safe MemoryBlockFactory
+## MemoryBlockFactory
 
 MemoryBlockFactory can allocate safe block which check indexing on operations.
 
