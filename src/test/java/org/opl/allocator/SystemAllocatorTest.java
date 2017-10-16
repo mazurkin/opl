@@ -1,4 +1,4 @@
-package org.opl.memory;
+package org.opl.allocator;
 
 import org.junit.Before;
 import org.junit.Test;

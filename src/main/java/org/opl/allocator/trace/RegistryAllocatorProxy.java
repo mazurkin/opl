@@ -1,7 +1,10 @@
-package org.opl.memory.trace;
+package org.opl.allocator.trace;
 
-import org.opl.memory.Allocator;
-import org.opl.memory.AllocatorException;
+import org.opl.allocator.Allocator;
+import org.opl.allocator.AllocatorException;
+import org.opl.util.OplUtils;
+
+import javax.annotation.Nonnull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -9,37 +12,85 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Tracks all allocated blocks as a map [address of block -> size of block}</p>
+ *
  * <p>Checks that all operations are performed with a valid address that exists in the registry.</p>
+ *
+ * <p>Sample usage in a test:</p>
+ * <pre>
+ * private RegistryAllocatorProxy allocator;
+ *
+ *{@literal @}Before
+ * public void setUp() throws Exception {
+ *     this.allocator = new RegistryAllocatorProxy(new SystemAllocator());
+ * }
+ *
+ *{@literal @}After
+ * public void tearDown() throws Exception {
+ *     Assert.assertEquals(0, this.allocator.getAllocatedBlocks());
+ * }
+ * </pre>
+ *
+ * <p>Can be combined with {@link DefensiveAllocatorProxy}</p>
+ *
+ * <p>Will not close delegate allocator - so you have to close the delegate allocator explicitly.</p>
  */
 public class RegistryAllocatorProxy implements Allocator {
 
     private final Allocator delegate;
 
+    private final boolean delegateIsOwned;
+
     private final Map<Long, Long> allocatedBlockRegistry;
 
     /**
      * Constructs a listing proxy around delegate allocator
-     * @param delegate Main allocator instance
+     * @param delegate Delegate allocator instance (will not be automatically closed)
+     * @param delegateIsOwned If set to <code>true</code> then delegate will also be closed on closing
      */
-    public RegistryAllocatorProxy(Allocator delegate) {
-        this(delegate, new ConcurrentHashMap<>());
+    public RegistryAllocatorProxy(@Nonnull Allocator delegate,
+                                  boolean delegateIsOwned)
+    {
+        this(delegate, delegateIsOwned, new ConcurrentHashMap<>());
     }
 
     /**
      * Constructs a listing proxy around delegate allocator
      * @param delegate Main allocator instance
+     * @param delegateIsOwned If set to <code>true</code> then delegate will also be closed on closing
      * @param registryMap Some thread-safe map instance that should be used as a registry
      */
-    public RegistryAllocatorProxy(Allocator delegate, Map<Long, Long> registryMap) {
+    public RegistryAllocatorProxy(@Nonnull Allocator delegate,
+                                  boolean delegateIsOwned,
+                                  @Nonnull Map<Long, Long> registryMap)
+    {
+        OplUtils.checkNotNull(delegate, "Delegate is not set");
+        OplUtils.checkNotNull(registryMap, "Registry map is not set");
+
         this.delegate = delegate;
+        this.delegateIsOwned = delegateIsOwned;
         this.allocatedBlockRegistry = registryMap;
+    }
+
+    public void reset() {
+        this.allocatedBlockRegistry.clear();
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (delegateIsOwned) {
+            delegate.close();
+        }
+
+        long blocks = allocatedBlockRegistry.size();
+        if (blocks != 0) {
+            throw new IllegalStateException("There are " + blocks
+                + " unreleased memory blocks. You have a memory leak.");
+        }
     }
 
     @Override
     public long allocate(long size) throws OutOfMemoryError {
-        if (size <= 0) {
-            throw new IllegalArgumentException("Size must be greater than 0");
-        }
+        OplUtils.checkGreaterThanZero(size, "Size must be greater than 0");
 
         long address = delegate.allocate(size);
 
@@ -50,9 +101,7 @@ public class RegistryAllocatorProxy implements Allocator {
 
     @Override
     public long reallocate(long address, long newSize) {
-        if (newSize <= 0) {
-            throw new IllegalArgumentException("Size must be greater than 0");
-        }
+        OplUtils.checkGreaterThanZero(newSize, "Size must be greater than 0");
 
         Long v = allocatedBlockRegistry.remove(address);
         if (v == null) {

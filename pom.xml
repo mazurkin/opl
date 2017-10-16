@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.opl</groupId>
-    <artifactId>core</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>opl-core</artifactId>
+    <version>0.8.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Offheap Primitives Library</name>
@@ -21,6 +21,7 @@
         <maven.compiler.failOnWarning>true</maven.compiler.failOnWarning>
         <!-- dependencies -->
         <version.slf4j>1.7.25</version.slf4j>
+        <version.jsr305>3.0.2</version.jsr305>
         <version.junit>4.12</version.junit>
         <version.logback>1.2.3</version.logback>
         <version.mockito>1.10.19</version.mockito>
@@ -32,6 +33,12 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${version.slf4j}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>${version.jsr305}</version>
             <scope>compile</scope>
         </dependency>
         <!-- test -->

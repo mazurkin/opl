@@ -1,9 +1,12 @@
-package org.opl.memory;
+package org.opl.allocator;
+
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Memory allocator abstraction. All implementations must be thread-safe.
  */
-public interface Allocator {
+@ThreadSafe
+public interface Allocator extends AutoCloseable {
 
     /**
      * Allocates specified amount of bytes. Byte values are undefined after allocation.

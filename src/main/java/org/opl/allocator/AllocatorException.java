@@ -1,4 +1,4 @@
-package org.opl.memory;
+package org.opl.allocator;
 
 /**
  * Allocator exception

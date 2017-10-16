@@ -1,6 +1,7 @@
-package org.opl.memory;
+package org.opl.allocator;
 
 import org.opl.platform.Jvm;
+import org.opl.util.OplUtils;
 
 /**
  * System allocator. Delegates all requests to sun.misc.Unsafe instance.
@@ -9,18 +10,14 @@ public class SystemAllocator implements Allocator {
 
     @Override
     public long allocate(long size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("Size must be greater than 0");
-        }
+        OplUtils.checkGreaterThanZero(size, "Size must be greater than 0");
 
         return Jvm.allocateMemory(size);
     }
 
     @Override
     public long reallocate(long address, long newSize) {
-        if (newSize <= 0) {
-            throw new IllegalArgumentException("Size must be greater than 0");
-        }
+        OplUtils.checkGreaterThanZero(newSize, "Size must be greater than 0");
 
         return Jvm.reallocateMemory(address, newSize);
     }
@@ -30,4 +27,8 @@ public class SystemAllocator implements Allocator {
         Jvm.freeMemory(address);
     }
 
+    @Override
+    public void close() throws Exception {
+        // do nothing with system allocator
+    }
 }

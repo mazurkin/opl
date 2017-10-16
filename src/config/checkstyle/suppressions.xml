@@ -4,4 +4,6 @@
         "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 <suppressions>
 
+    <suppress files="Jvm\.java" checks="[a-zA-Z0-9]*"/>
+
 </suppressions>
